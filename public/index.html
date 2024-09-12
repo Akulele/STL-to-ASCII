@@ -1,0 +1,63 @@
+<!DOCTYPE html>
+<html lang="en">
+    <head>
+        <meta charset="UTF-8">
+        <meta name="viewport" content="width=device-width, initial-scale=1.0">
+        <title>3D to ASCII Art Converter</title>
+        <link rel="stylesheet" href="style.css">
+        <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
+        <script src="https://cdn.jsdelivr.net/npm/three@0.128.0/examples/js/controls/OrbitControls.js"></script>
+        <script src="https://cdn.jsdelivr.net/npm/three@0.128.0/examples/js/loaders/STLLoader.js"></script>
+        <script src="https://cdn.jsdelivr.net/npm/three@0.128.0/examples/js/loaders/OBJLoader.js"></script>
+        <script src="https://cdn.jsdelivr.net/npm/three@0.128.0/examples/js/loaders/FBXLoader.js"></script>
+        <script src="https://cdn.jsdelivr.net/npm/three@0.128.0/examples/js/loaders/GLTFLoader.js"></script>
+        <script src="https://cdn.jsdelivr.net/npm/three@0.128.0/examples/js/effects/AsciiEffect.js"></script>
+        <script src="https://html2canvas.hertzen.com/dist/html2canvas.min.js"></script>
+        <script src="https://cdnjs.cloudflare.com/ajax/libs/socket.io/4.0.1/socket.io.js"></script>
+        <script src="https://cdn.jsdelivr.net/pyodide/v0.22.1/full/pyodide.js"></script>
+        <script src="https://cdn.jsdelivr.net/npm/three@0.128.0/examples/js/shaders/CopyShader.js"></script>
+        <script src="https://cdn.jsdelivr.net/npm/three@0.128.0/examples/js/postprocessing/EffectComposer.js"></script>
+        <script src="https://cdn.jsdelivr.net/npm/three@0.128.0/examples/js/postprocessing/RenderPass.js"></script>
+        <script src="https://cdn.jsdelivr.net/npm/three@0.128.0/examples/js/postprocessing/ShaderPass.js"></script>
+        <script src="https://cdn.jsdelivr.net/npm/three@0.128.0/examples/js/effects/AsciiEffect.js"></script>
+        <script src="/js/gif.js"></script>
+        <script src="/js/gif.worker.js"></script>
+    </head>
+<body>
+    <div class="container">
+        <h1>
+            ██████╗ ██████╗     ████████╗ ██████╗      █████╗ ███████╗ ██████╗██╗██╗
+            ╚════██╗██╔══██╗    ╚══██╔══╝██╔═══██╗    ██╔══██╗██╔════╝██╔════╝██║██║
+             █████╔╝██║  ██║       ██║   ██║   ██║    ███████║███████╗██║     ██║██║
+             ╚═══██╗██║  ██║       ██║   ██║   ██║    ██╔══██║╚════██║██║     ██║██║
+            ██████╔╝██████╔╝       ██║   ╚██████╔╝    ██║  ██║███████║╚██████╗██║██║
+            ╚═════╝ ╚═════╝        ╚═╝    ╚═════╝     ╚═╝  ╚═╝╚══════╝ ╚═════╝╚═╝╚═╝
+        </h1>
+        <div class="upload-container">
+            <label for="model-file" class="file-label">Choose 3D Model</label>
+            <input type="file" id="model-file" accept=".stl,.obj,.fbx,.gltf,.glb" style="display: none;">
+            <span id="file-name">No file chosen</span>
+        </div>
+        <div id="result">
+            <h2>ASCII Output</h2>
+            <div id="ascii-output"></div>
+        </div>
+        <div class="controls">
+            <button id="rotate-btn">Toggle Rotation</button>
+            <button id="light-dark-btn">Toggle Light/Dark</button>
+            <button id="screenshot-btn">Take Screenshot</button>
+            <!--
+            <button id="download-txt-btn">Download ASCII</button>
+            -->
+            <button id="download-gif-btn">Download GIF</button>
+            <button id="change-color-btn">Change Text Color</button>
+            <button id="download-svg-btn">Download Animated SVG</button>
+            <!--
+            <button id="download-animation-btn">Download Animations (PNG & WebP)</button>
+            -->
+        </div>
+        <div id="error-message"></div>
+    </div>
+    <script src="/client.js" type="module"></script>
+</body>
+</html>
