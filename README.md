@@ -5,7 +5,7 @@ A web-based tool that converts 3D models into ASCII art representations in real-
 ## Features
 
 - **Real-time 3D to ASCII Conversion**: View 3D models as ASCII art in real-time
-- **Multiple File Format Support**: Supports STL, OBJ, FBX, GLTF, and GLB files
+- **Multiple File Format Support**: Supports STL file format (primary format)
 - **Interactive Controls**:
   - Model rotation with mouse control
   - Auto-rotation toggle
@@ -15,7 +15,7 @@ A web-based tool that converts 3D models into ASCII art representations in real-
   - Screenshot capture
   - Text file export
   - Animated SVG export
-  - Multi-frame ASCII animation
+  - Animated GIF generation
 
 ## Tech Stack
 
@@ -24,13 +24,14 @@ A web-based tool that converts 3D models into ASCII art representations in real-
   - Custom ASCII effect implementation
   - HTML5 Canvas for export functionality
 - Backend:
-  - Node.js
-  - Express
-  - Python (via Pyodide) for image processing
+  - Haskell with Scotty web framework
+  - Warp server
+  - Binary STL file processing
+  - Custom ASCII conversion algorithm
 - Additional Libraries:
-  - `multer` for file uploads
   - `gif.js` for GIF generation
-  - Various Three.js loaders (STL, OBJ, FBX, GLTF)
+  - Three.js AsciiEffect for real-time rendering
+  - Vector operations for 3D transformations
 
 ## Installation
 
@@ -40,21 +41,27 @@ git clone https://github.com/yourusername/3d-ascii-converter.git
 cd 3d-ascii-converter
 ```
 
-2. Install dependencies:
+2. Install Haskell dependencies:
+```bash
+cabal update
+cabal build
+```
+
+3. Install Node.js dependencies:
 ```bash
 npm install
 ```
 
-3. Start the server:
+4. Start the server:
 ```bash
-npm start
+cabal run
 ```
 
-4. Open your browser and navigate to `http://localhost:3000`
+5. Open your browser and navigate to `http://localhost:3000`
 
 ## Usage
 
-1. Click the "Choose 3D Model" button to select your 3D file
+1. Click the "Choose 3D Model" button to select your STL file
 2. Use mouse controls to rotate the view:
    - Left click + drag to rotate
    - Right click + drag to pan
@@ -80,19 +87,23 @@ npm start
 - Preserves ASCII art style with smooth animation
 - Configurable animation duration and frame count
 
-## Customization
+### Animated GIF
+- Generates an animated GIF of the rotating model
+- Customizable frame rate and quality
+- Maintains ASCII character fidelity
 
-### Color Schemes
-- Default light mode: Black text on white background
-- Default dark mode: White text on black background
-- Custom color picker for ASCII text
-- Available colors: White, Yellow, Green, Cyan, Magenta, Red, Blue, Orange
+## ASCII Implementation Details
 
-### ASCII Characters
-The application uses a custom set of ASCII characters for different shading levels:
+The ASCII conversion process uses the following character set for shading:
 ```
 ' .:-=+*#%@'  (From lightest to darkest)
 ```
+
+The conversion algorithm in `STLProcessor.hs` implements:
+- Z-buffer rendering
+- Perspective projection
+- Custom character mapping based on depth
+- Triangle rasterization using Bresenham's algorithm
 
 ## Browser Compatibility
 
@@ -104,10 +115,11 @@ Tested and working on:
 
 ## Known Limitations
 
-- Large 3D models may take longer to process
+- Currently only supports binary STL files
+- Large STL models may take longer to process
 - Animation performance depends on system capabilities
-- Some complex models may result in reduced ASCII detail
-- GIF export currently limited to smaller frame counts
+- GIF export limited to 30 frames for performance
+- ASCII resolution fixed at 80x40 characters
 
 ## Contributing
 
@@ -119,10 +131,11 @@ Tested and working on:
 
 ## License
 
-This project is licensed under the MIT License - see the LICENSE file for details.
+This project is licensed under the BSD-3-Clause License - see the LICENSE file for details.
 
 ## Acknowledgments
 
 - Three.js community for 3D rendering capabilities
 - ASCII art community for inspiration and character sets
+- Haskell community for vector math and binary processing libraries
 - Contributors and testers who helped improve the project
