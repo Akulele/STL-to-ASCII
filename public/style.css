@@ -9,6 +9,7 @@ body {
     color: #a9b1d6;
     padding: 20px;
     box-sizing: border-box;
+    touch-action: manipulation;
 }
 
 .container {
@@ -34,8 +35,13 @@ h2 {
     color: #7aa2f7;
 }
 
-.upload-container, .controls {
+.upload-container {
     margin-bottom: 1rem;
+    text-align: center;
+}
+
+.file-input {
+    display: none;
 }
 
 .file-label {
@@ -45,6 +51,8 @@ h2 {
     border-radius: 5px;
     cursor: pointer;
     transition: all 0.3s ease;
+    display: inline-block;
+    margin-bottom: 0.5rem;
 }
 
 .file-label:hover {
@@ -69,6 +77,31 @@ h2 {
     box-shadow: 0 0 10px rgba(86, 95, 137, 0.3);
 }
 
+.controls {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 0.5rem;
+    justify-content: center;
+    margin: 1rem 0;
+}
+
+.control-btn {
+    padding: 0.5rem 1rem;
+    background-color: #414868;
+    color: #c0caf5;
+    border: none;
+    border-radius: 5px;
+    cursor: pointer;
+    font-size: 1rem;
+    transition: all 0.3s ease;
+    min-width: 120px;
+}
+
+.control-btn:hover {
+    background-color: #565f89;
+    box-shadow: 0 0 10px rgba(86, 95, 137, 0.5);
+}
+
 button {
     margin: 0.5rem;
     padding: 0.5rem 1rem;
@@ -84,16 +117,6 @@ button {
 button:hover {
     background-color: #565f89;
     box-shadow: 0 0 10px rgba(86, 95, 137, 0.5);
-    animation: breathe 2s infinite;
-}
-
-@keyframes breathe {
-    0%, 100% {
-        transform: scale(1);
-    }
-    50% {
-        transform: scale(1.05);
-    }
 }
 
 #error-message {
@@ -122,4 +145,45 @@ button:hover {
     margin-top: 5px;
     color: #c0caf5;
     font-size: 14px;
+}
+
+.hidden {
+    display: none;
+}
+
+/* Mobile Responsive Design */
+@media screen and (max-width: 768px) {
+    .container {
+        padding: 1rem;
+    }
+
+    h1 {
+        font-size: 6px;
+    }
+
+    .controls {
+        flex-direction: column;
+    }
+
+    .control-btn {
+        width: 100%;
+        min-width: unset;
+    }
+
+    #ascii-output {
+        height: 50vh;
+        font-size: 0.5rem;
+    }
+}
+
+/* Touch Device Optimizations */
+@media (hover: none) {
+    .control-btn:active {
+        transform: scale(0.98);
+        background-color: #565f89;
+    }
+    
+    #ascii-output {
+        -webkit-overflow-scrolling: touch;
+    }
 }

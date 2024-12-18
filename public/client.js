@@ -5,11 +5,17 @@ import { FBXLoader } from 'https://cdn.jsdelivr.net/npm/three@0.121.1/examples/j
 import { GLTFLoader } from 'https://cdn.jsdelivr.net/npm/three@0.121.1/examples/jsm/loaders/GLTFLoader.js';
 import { AsciiEffect } from 'https://cdn.jsdelivr.net/npm/three@0.121.1/examples/jsm/effects/AsciiEffect.js';
 
+// Server configuration
+const SERVER_URL = 'http://localhost:3000';
+
+// Scene setup variables
 let scene, camera, renderer, effect, myMesh, controls;
 let rotateModel = false;
+let lightMode = false;
+let characters = ' .:-=+*#%@';
 let ASCIIColor = '#ffffff';
 let backgroundColor = 'black';
-const characters = ' .:-+*=%@#';
+let currentView = '3d'; 
 
 function init() {
     scene = new THREE.Scene();
@@ -21,6 +27,7 @@ function init() {
     renderer = new THREE.WebGLRenderer();
     renderer.setSize(window.innerWidth, window.innerHeight);
 
+    // Add lights
     const pointLight1 = new THREE.PointLight(0xffffff, 1);
     pointLight1.position.set(100, 100, 400);
     scene.add(pointLight1);
@@ -30,12 +37,25 @@ function init() {
     scene.add(pointLight2);
 
     createEffect();
-
-    controls = new OrbitControls(camera, effect.domElement);
+    initControls();
 
     document.getElementById('ascii-output').appendChild(effect.domElement);
-
     window.addEventListener('resize', onWindowResize, false);
+}
+
+function initControls() {
+    controls = new OrbitControls(camera, effect.domElement);
+    controls.enableDamping = true;
+    controls.dampingFactor = 0.05;
+    controls.screenSpacePanning = true;
+    controls.minDistance = 0.1;
+    controls.maxDistance = 10;
+    controls.maxPolarAngle = Math.PI;
+    
+    controls.touches = {
+        ONE: THREE.TOUCH.ROTATE,
+        TWO: THREE.TOUCH.DOLLY_PAN
+    };
 }
 
 function createEffect() {
@@ -50,32 +70,26 @@ function createEffect() {
 
 function loadModel(file) {
     const reader = new FileReader();
-    reader.onload = function (event) {
+    reader.onload = function(event) {
         const extension = file.name.split('.').pop().toLowerCase();
         let loader;
 
+        showProgress('Loading model...', 0);
+
         switch (extension) {
-            case 'stl':
-                loader = new STLLoader();
-                break;
-            case 'obj':
-                loader = new OBJLoader();
-                break;
-            case 'fbx':
-                loader = new FBXLoader();
-                break;
+            case 'stl': loader = new STLLoader(); break;
+            case 'obj': loader = new OBJLoader(); break;
+            case 'fbx': loader = new FBXLoader(); break;
             case 'gltf':
-            case 'glb':
-                loader = new GLTFLoader();
-                break;
+            case 'glb': loader = new GLTFLoader(); break;
             default:
-                console.error('Unsupported file format');
+                showError('Unsupported file format');
                 return;
         }
 
-        loader.load(
-            URL.createObjectURL(file),
-            function (object) {
+        const url = URL.createObjectURL(file);
+        loader.load(url,
+            function(object) {
                 if (myMesh) scene.remove(myMesh);
 
                 if (object.scene) {
@@ -83,43 +97,47 @@ function loadModel(file) {
                 } else if (object.isGroup) {
                     myMesh = object;
                 } else {
-                    const material = new THREE.MeshStandardMaterial({ color: 0xc0caf5, flatShading: true, side: THREE.DoubleSide });
+                    const material = new THREE.MeshStandardMaterial({
+                        color: 0xc0caf5,
+                        flatShading: true,
+                        side: THREE.DoubleSide
+                    });
                     myMesh = new THREE.Mesh(object, material);
                 }
 
-                myMesh.position.set(0, 0, 0);
-                myMesh.rotation.x = -Math.PI / 2;
-
-                const bbox = new THREE.Box3().setFromObject(myMesh);
-                const size = bbox.getSize(new THREE.Vector3());
-                const center = bbox.getCenter(new THREE.Vector3());
-                const maxDim = Math.max(size.x, size.y, size.z);
-                
-                myMesh.scale.multiplyScalar(2 / maxDim);
-                myMesh.position.sub(center.multiplyScalar(2 / maxDim));
-
-                camera.position.set(0, 0, 3);
-                camera.lookAt(0, 0, 0);
-                controls.update();
-
+                optimizeModel(myMesh);
                 scene.add(myMesh);
+                URL.revokeObjectURL(url);
+                showProgress('Model loaded successfully!', 100);
             },
-            undefined,
-            function (error) {
-                console.error('An error occurred while loading the model:', error);
+            function(xhr) {
+                const percent = (xhr.loaded / xhr.total) * 100;
+                showProgress('Loading model...', percent);
+            },
+            function(error) {
+                console.error('Error loading model:', error);
                 showError('Error loading the model. Please try again.');
+                URL.revokeObjectURL(url);
             }
         );
     };
     reader.readAsArrayBuffer(file);
 }
 
-function animate() {
-    requestAnimationFrame(animate);
-    if (rotateModel && myMesh) {
-        myMesh.rotation.z += 0.01;
-    }
-    effect.render(scene, camera);
+function optimizeModel(mesh) {
+    const bbox = new THREE.Box3().setFromObject(mesh);
+    const size = bbox.getSize(new THREE.Vector3());
+    const center = bbox.getCenter(new THREE.Vector3());
+    const maxDim = Math.max(size.x, size.y, size.z);
+    const scale = 2 / maxDim;
+
+    mesh.scale.multiplyScalar(scale);
+    mesh.position.sub(center.multiplyScalar(scale));
+    mesh.rotation.x = -Math.PI / 2;
+
+    camera.position.set(0, 0, 3);
+    camera.lookAt(0, 0, 0);
+    controls.update();
 }
 
 function onWindowResize() {
@@ -129,16 +147,30 @@ function onWindowResize() {
     effect.setSize(window.innerWidth, window.innerHeight);
 }
 
+function animate() {
+    requestAnimationFrame(animate);
+    if (rotateModel && myMesh && currentView === '3d') {
+        myMesh.rotation.z += 0.01;
+    }
+    if (currentView === '3d') {
+        effect.render(scene, camera);
+    }
+}
+
 function showError(message) {
     const errorElement = document.getElementById('error-message') || createErrorElement();
     errorElement.textContent = message;
+    errorElement.style.opacity = '1';
+    setTimeout(() => {
+        errorElement.style.opacity = '0';
+    }, 3000);
 }
 
 function createErrorElement() {
-    const newErrorElement = document.createElement('div');
-    newErrorElement.id = 'error-message';
-    document.querySelector('.container').appendChild(newErrorElement);
-    return newErrorElement;
+    const errorElement = document.createElement('div');
+    errorElement.id = 'error-message';
+    document.querySelector('.container').appendChild(errorElement);
+    return errorElement;
 }
 
 function showProgress(message, progress) {
@@ -165,61 +197,7 @@ function createProgressContainer() {
     return container;
 }
 
-function captureAsciiFrames(frames = 30) {
-    const asciiFrames = [];
-    const angleStep = (Math.PI * 2) / frames;
-    const originalRotation = new THREE.Euler().copy(myMesh.rotation);
-
-    for (let i = 0; i < frames; i++) {
-        myMesh.rotation.y = originalRotation.y + i * angleStep;
-        renderer.render(scene, camera);
-        effect.render(scene, camera);
-        
-        const asciiContent = effect.domElement.innerText;
-        asciiFrames.push(asciiContent);
-        
-        showProgress('Capturing frames...', (i / frames) * 50);
-    }
-
-    myMesh.rotation.copy(originalRotation);
-    renderer.render(scene, camera);
-    effect.render(scene, camera);
-
-    return asciiFrames;
-}
-
-function takeScreenshot() {
-    if (!effect || !effect.domElement) {
-        console.error('ASCII effect not initialized');
-        return;
-    }
-
-    // Create a canvas element to draw the ASCII art
-    const canvas = document.createElement('canvas');
-    canvas.width = effect.domElement.clientWidth;
-    canvas.height = effect.domElement.clientHeight;
-    const ctx = canvas.getContext('2d');
-
-    // Set the background
-    ctx.fillStyle = backgroundColor;
-    ctx.fillRect(0, 0, canvas.width, canvas.height);
-
-    // Draw the ASCII art
-    ctx.fillStyle = ASCIIColor;
-    ctx.font = '9.7561px monospace';
-    const lines = effect.domElement.innerText.split('\n');
-    lines.forEach((line, index) => {
-        ctx.fillText(line, 0, (index + 1) * 9.7561);
-    });
-
-    // Convert the canvas to a data URL and trigger download
-    const dataURL = canvas.toDataURL('image/png');
-    const link = document.createElement('a');
-    link.href = dataURL;
-    link.download = 'ascii_screenshot.png';
-    link.click();
-}
-
+// Color selector and management
 function changeTextColor() {
     const colors = [
         '#ffffff', '#ffff00', '#00ff00', '#00ffff', 
@@ -246,13 +224,16 @@ function changeTextColor() {
     const colorSelector = document.createElement('div');
     colorSelector.id = 'color-selector';
     colorSelector.innerHTML = colorTable;
-    colorSelector.style.position = 'fixed';
-    colorSelector.style.top = '50%';
-    colorSelector.style.left = '50%';
-    colorSelector.style.transform = 'translate(-50%, -50%)';
-    colorSelector.style.backgroundColor = '#ffffff';
-    colorSelector.style.padding = '20px';
-    colorSelector.style.border = '2px solid #000000';
+    Object.assign(colorSelector.style, {
+        position: 'fixed',
+        top: '50%',
+        left: '50%',
+        transform: 'translate(-50%, -50%)',
+        backgroundColor: '#ffffff',
+        padding: '20px',
+        border: '2px solid #000000',
+        zIndex: '1000',
+    });
 
     const closeButton = document.createElement('button');
     closeButton.textContent = 'Close';
@@ -263,68 +244,131 @@ function changeTextColor() {
     document.body.appendChild(colorSelector);
 }
 
-function generateAnimatedGIF() {
-    if (typeof window.GIF === 'undefined') {
-        console.error('GIF library is not loaded. Please check your script inclusions.');
-        showProgress('Error: GIF library not loaded', 0);
+function saveAsTextFile() {
+    const content = document.getElementById('ascii-output').textContent;
+    const blob = new Blob([content], { type: 'text/plain' });
+    const url = URL.createObjectURL(blob);
+    const link = document.createElement('a');
+    link.href = url;
+    link.download = 'ascii_model.txt';
+    link.click();
+    URL.revokeObjectURL(url);
+}
+
+function closeColorSelector() {
+    const colorSelector = document.getElementById('color-selector');
+    if (colorSelector) {
+        document.body.removeChild(colorSelector);
+    }
+}
+
+function selectColor(color) {
+    ASCIIColor = color;
+    if (effect?.domElement) {
+        effect.domElement.style.color = ASCIIColor;
+    }
+    const asciiOutput = document.getElementById('ascii-output');
+    if (currentView === 'ascii') {
+        asciiOutput.style.color = ASCIIColor;
+    }
+    closeColorSelector();
+}
+
+function takeScreenshot() {
+    if (!effect) {
+        console.error('ASCII effect not initialized');
         return;
     }
 
+    // Create canvas matching the effect dimensions
+    const canvas = document.createElement('canvas');
+    canvas.width = effect.domElement.clientWidth;
+    canvas.height = effect.domElement.clientHeight;
+    const ctx = canvas.getContext('2d');
+
+    // Make sure we have the latest render
+    effect.render(scene, camera);
+
+    // Get ASCII content directly from effect
+    const asciiContent = effect.domElement.innerText;
+
+    // Fill background
+    ctx.fillStyle = backgroundColor;
+    ctx.fillRect(0, 0, canvas.width, canvas.height);
+
+    // Draw ASCII text
+    ctx.fillStyle = ASCIIColor;
+    ctx.font = '9.7561px monospace';  // Match the font used in GIF generation
+    asciiContent.split('\n').forEach((line, index) => {
+        ctx.fillText(line, 0, (index + 1) * 9.7561);  // Same spacing as GIF
+    });
+
+    // Save image
+    const dataURL = canvas.toDataURL('image/png');
+    const link = document.createElement('a');
+    link.href = dataURL;
+    link.download = 'ascii_screenshot.png';
+    link.click();
+}
+
+async function generateGif() {
     if (!myMesh) {
         showProgress('Please load a 3D model first.', 0);
         console.log('No model loaded');
         return;
     }
 
-    console.log('Starting ASCII GIF animation generation process');
-    showProgress('Preparing to generate ASCII GIF animation...', 0);
+    console.log('Starting GIF generation process');
+    showProgress('Preparing to generate GIF...', 0);
 
     const frames = 30;
     const originalRotation = myMesh.rotation.z;
+    const originalPosition = myMesh.position.clone();
 
-    // Create a canvas element to draw our ASCII frames
+    // **Removed the extra centering step here**.
+    // The model is already centered in optimizeModel().
+    // We trust that the model is centered in the viewport as desired.
+    // const bbox = new THREE.Box3().setFromObject(myMesh);
+    // const center = bbox.getCenter(new THREE.Vector3());
+    // myMesh.position.sub(center);
+
     const canvas = document.createElement('canvas');
     canvas.width = effect.domElement.clientWidth;
     canvas.height = effect.domElement.clientHeight;
     const ctx = canvas.getContext('2d');
 
-    // Initialize gif.js with local worker
     const gif = new GIF({
         workers: 2,
         quality: 10,
         width: canvas.width,
         height: canvas.height,
         workerScript: '/js/gif.worker.js'
-      });
+    });
 
-    // Capture ASCII frames
     for (let i = 0; i < frames; i++) {
         myMesh.rotation.z = originalRotation + (i / frames) * Math.PI * 2;
         effect.render(scene, camera);
-        
+
         const asciiContent = effect.domElement.innerText;
 
-        // Clear canvas and set background
         ctx.fillStyle = backgroundColor;
         ctx.fillRect(0, 0, canvas.width, canvas.height);
 
-        // Draw ASCII content
         ctx.fillStyle = ASCIIColor;
         ctx.font = '9.7561px monospace';
         asciiContent.split('\n').forEach((line, index) => {
             ctx.fillText(line, 0, (index + 1) * 9.7561);
         });
 
-        // Add frame to GIF
-        gif.addFrame(ctx, {copy: true, delay: 100});
-        
+        gif.addFrame(ctx, { copy: true, delay: 100 });
         showProgress('Capturing ASCII frames...', (i / frames) * 90);
     }
 
-    // Reset rotation
+    // Restore original position and rotation
+    myMesh.position.copy(originalPosition);
     myMesh.rotation.z = originalRotation;
+    effect.render(scene, camera);
 
-    // Render GIF
     gif.on('finished', function(blob) {
         const url = URL.createObjectURL(blob);
         const link = document.createElement('a');
@@ -338,85 +382,18 @@ function generateAnimatedGIF() {
     gif.render();
 }
 
-document.getElementById('download-gif-btn').addEventListener('click', generateAnimatedGIF);
-
-function closeColorSelector() {
-    const colorSelector = document.getElementById('color-selector');
-    if (colorSelector) {
-        document.body.removeChild(colorSelector);
-    }
-}
-
-function selectColor(color) {
-    ASCIIColor = color;
-    effect.domElement.style.color = ASCIIColor;
-    closeColorSelector();
-}
-
-function saveAsTextFile() {
-    if (!myMesh) {
-        showProgress('Please load a 3D model first.', 0);
-        console.log('No model loaded');
-        return;
-    }
-
-    console.log('Starting text file generation process');
-    showProgress('Preparing to generate text file...', 0);
-
-    const frames = 15;
-    const angleStep = (Math.PI * 2) / frames;
-    let allFrames = '';
-
-    try {
-        console.log(`Capturing ${frames} frames`);
-        for (let i = 0; i < frames; i++) {
-            myMesh.rotation.y = i * angleStep;
-            effect.render(scene, camera);
-            
-            const asciiContent = effect.domElement.textContent;
-            const frameHeader = `Frame ${i + 1}:\n${'='.repeat(80)}\n`;
-            const formattedContent = asciiContent.split('\n').map(line => line.trimRight()).join('\n');
-            allFrames += frameHeader + formattedContent + '\n\n';
-            
-            console.log(`Captured frame ${i + 1}/${frames}`);
-            showProgress('Capturing frames...', (i / frames) * 100);
-        }
-
-        console.log('Frame capture complete');
-        showProgress('Generating text file...', 90);
-
-        const blob = new Blob([allFrames], { type: 'text/plain' });
-        const url = URL.createObjectURL(blob);
-        const link = document.createElement('a');
-        link.href = url;
-        link.download = 'ascii_model_frames.txt';
-        link.click();
-        URL.revokeObjectURL(url);
-
-        console.log('Text file generation complete');
-        showProgress('Text file generated successfully!', 100);
-
-    } catch (error) {
-        console.error('Error during text file generation:', error);
-        showProgress(`Error: ${error.message}. Please try again.`, 0);
-    }
-}
-
 function generateAnimatedSVG() {
     if (!myMesh) {
         showProgress('Please load a 3D model first.', 0);
-        console.log('No model loaded');
         return;
     }
 
-    console.log('Starting ASCII SVG animation generation process');
     showProgress('Preparing to generate ASCII SVG animation...', 0);
 
     const frames = 30;
     const svgFrames = [];
     const originalRotation = myMesh.rotation.z;
 
-    // Capture ASCII frames
     for (let i = 0; i < frames; i++) {
         myMesh.rotation.z = originalRotation + (i / frames) * Math.PI * 2;
         effect.render(scene, camera);
@@ -427,10 +404,8 @@ function generateAnimatedSVG() {
         showProgress('Capturing ASCII frames...', (i / frames) * 90);
     }
 
-    // Reset rotation
     myMesh.rotation.z = originalRotation;
 
-    // Generate SVG with ASCII text
     const svgWidth = effect.domElement.clientWidth;
     const svgHeight = effect.domElement.clientHeight;
     let svgContent = `<svg xmlns="http://www.w3.org/2000/svg" width="${svgWidth}" height="${svgHeight}">
@@ -460,7 +435,6 @@ function generateAnimatedSVG() {
 
     svgContent += '</svg>';
 
-    // Create downloadable SVG file
     const blob = new Blob([svgContent], { type: 'image/svg+xml' });
     const url = URL.createObjectURL(blob);
     const link = document.createElement('a');
@@ -480,64 +454,63 @@ function escapeHTML(str) {
               .replace(/'/g, '&#039;');
 }
 
+// Event listeners initialization
 document.addEventListener('DOMContentLoaded', () => {
     init();
     animate();
 
+    const fileInput = document.getElementById('model-file');
+    if (fileInput) {
+        fileInput.addEventListener('change', function(event) {
+            const file = event.target.files[0];
+            if (file) {
+                document.getElementById('file-name').textContent = file.name;
+                loadModel(file);
+            }
+        });
+    }
+
+    // Add event listeners for other controls
     const addEventListenerSafely = (id, event, handler) => {
         const element = document.getElementById(id);
         if (element) {
             element.addEventListener(event, handler);
-        } else {
-            console.error(`Element with id '${id}' not found in the DOM`);
         }
     };
-
-    addEventListenerSafely('model-file', 'change', (event) => {
-        const file = event.target.files[0];
-        if (file) {
-            const fileNameElement = document.getElementById('file-name');
-            if (fileNameElement) {
-                fileNameElement.textContent = file.name;
-            }
-            loadModel(file);
-        }
-    });
 
     addEventListenerSafely('rotate-btn', 'click', () => {
         rotateModel = !rotateModel;
     });
 
     addEventListenerSafely('light-dark-btn', 'click', () => {
-        const lightMode = backgroundColor === 'black';
+        lightMode = !lightMode;
         backgroundColor = lightMode ? 'white' : 'black';
         ASCIIColor = lightMode ? 'black' : 'white';
-        if (effect && effect.domElement) {
+        if (effect?.domElement) {
             effect.domElement.style.color = ASCIIColor;
             effect.domElement.style.backgroundColor = backgroundColor;
         }
     });
 
     addEventListenerSafely('screenshot-btn', 'click', takeScreenshot);
-
-    addEventListenerSafely('download-txt-btn', 'click', () => {
-        if (effect && effect.domElement) {
-            const ascii = effect.domElement.textContent;
-            const blob = new Blob([ascii], { type: 'text/plain' });
-            const url = URL.createObjectURL(blob);
-            const link = document.createElement('a');
-            link.download = 'ascii_model.txt';
-            link.href = url;
-            link.click();
-            URL.revokeObjectURL(url);
-        }
-    });
-
     addEventListenerSafely('change-color-btn', 'click', changeTextColor);
-    
-    addEventListenerSafely('download-svg-btn', 'click', generateAnimatedSVG);
+    document.getElementById('download-gif-btn').addEventListener('click', generateGif);
+    document.getElementById('download-svg-btn').addEventListener('click', generateAnimatedSVG);
 });
 
-// Add these functions to the global scope
+// Handle device orientation changes
+window.addEventListener('orientationchange', () => {
+    setTimeout(() => {
+        onWindowResize();
+        if (myMesh) {
+            const bbox = new THREE.Box3().setFromObject(myMesh);
+            const center = bbox.getCenter(new THREE.Vector3());
+            myMesh.position.sub(center);
+            camera.lookAt(0, 0, 0);
+        }
+    }, 100);
+});
+
+// Make necessary functions available globally
 window.selectColor = selectColor;
 window.closeColorSelector = closeColorSelector;

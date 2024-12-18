@@ -1,0 +1,19 @@
+# Ignore everything by default
+*
+
+# Don’t ignore the .gitignore file itself
+!.gitignore
+
+# Include the entire public directory and its contents
+!public/
+
+# Unignore the parent directories
+!server/
+!server/haskell/
+!server/haskell/stl-ascii-server/
+!server/haskell/stl-ascii-server/app/
+
+# Include only the specific Haskell files
+!server/haskell/stl-ascii-server/app/Main.hs
+!server/haskell/stl-ascii-server/app/STLProcessor.hs
+!server/haskell/stl-ascii-server/stl-ascii-server.cabal
